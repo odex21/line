@@ -1,11 +1,21 @@
+
+// import java.lang.reflect.Type;
+import java.io.Console;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+// import com.google.gson.reflect.TypeToken;
+import com.google.gson.reflect.TypeToken;
+
 public class Test {
-    public static ArrayList<String> main(String str) {
+    public static ArrayList<String> split(String str) {
         String pattern = "\n";
 
         Pattern r = Pattern.compile(pattern);
@@ -24,18 +34,17 @@ public class Test {
         return lines;
     }
 
-    public static ArrayList<Line> convert(HashMap<String, List<HashMap<String, Object>>> delta) {
-        List<HashMap<String, Object>> ops = delta.get("ops");
+    public static ArrayList<Line> convert(Delta delta) {
+        List<Op> ops = delta.ops;
 
         Line tempLine = new Line();
 
         ArrayList<Line> lines = new ArrayList<Line>();
-        for (HashMap<String, Object> cur : ops) {
+        for (Op cur : ops) {
             // const { insert, ...attr } = cur;
 
-            Object insert = cur.get("insert");
-            cur.remove("insert");
-            HashMap<String, Object> attr = cur;
+            Object insert = cur.insert;
+            Optional<HashMap<String, String>> attr = cur.attributes;
 
             if (insert instanceof String) {
                 // 文本span
@@ -44,7 +53,7 @@ public class Test {
                 // 一般文本则长度为一，换行的长度至少为2
                 // ArrayList<Line> _lines = new ArrayList<Line>();
                 String str = (String) insert;
-                ArrayList<HashMap<String, String>> _lines = Test.convertListToMapList(Test.main(str));
+                ArrayList<HashMap<String, String>> _lines = Test.convertListToMapList(Test.split(str));
 
                 // 是否换行
                 if (_lines.size() > 1) {
@@ -75,12 +84,13 @@ public class Test {
         return lines;
     }
 
-    public static <T> ArrayList<HashMap<String, T>> convertListToMapList(ArrayList<T> list) {
+    public static <T> ArrayList<Op> convertListToMapList(ArrayList<T> list) {
 
-        ArrayList<HashMap<String, T>> result = new ArrayList<HashMap<String, T>>();
+        ArrayList<Op> result = new ArrayList<>();
         for (T t : list) {
-            HashMap<String, T> data = new HashMap<String, T>();
-            data.put("insert", t);
+            Op data = new Op();
+            // data.put("insert", t);
+            data.insert = t;
             result.add(data);
         }
 
@@ -92,23 +102,66 @@ class Line {
     public ArrayList<Object> spans = new ArrayList<Object>();
     public Object attributes;
 
-    void push(HashMap<String, ?> item) {
-        if (item.get("insert") != null || item.get("attributes") != null)
+    void push(Op item) {
+        if (item.insert != null || item.attributes != null)
             this.spans.add(item);
     }
 
-    void set(HashMap<String, Object> attrs) {
-        this.attributes = attrs.get("attributes");
+    void set(Optional<HashMap<String, String>> attrs) {
+        this.attributes = attrs;
     }
+
 }
 
 class M {
     public static void main(String[] args) {
-        Test t = new Test();
+        // Gson gson =
+        GsonBuilder builder = new GsonBuilder();
+        Type type = new TypeToken<Delta>() {
+        }.getType();
 
-        // t.convert("")
-        String str = "{"ops":[{"insert":"标题h1"},{"attributes":{"header":1},"insert":"\n"},{"attributes":{"bold":true},"insert":"加粗"},{"insert":"\n"},{"insert":{"image":"https://image-1258234461.cos.ap-guangzhou.myqcloud.com/icon/OJScVUCuH.jpg"}},{"insert":"\n"},{"attributes":{"background":"#cce0f5"},"insert":"浅蓝色"},{"attributes":{"background":"#cce0f5","color":"#008a00"},"insert":"背景的拉风大姐"},{"attributes":{"background":"#cce0f5"},"insert":"激"},{"attributes":{"background":"#cce0f5","color":"#ff9900"},"insert":"发打卡"},{"attributes":{"background":"#cce0f5"},"insert":"机"},{"insert":"\n\n\n\n\n居中"},{"attributes":{"background":"yellow"},"insert":"————"},{"attributes":{"align":"center"},"insert":"\n"},{"attributes":{"background":"#0066cc"},"insert":"靠右"},{"attributes":{"align":"right"},"insert":"\n"},{"attributes":{"underline":true},"insert":"下划线"},{"insert":"\n"},{"attributes":{"strike":true},"insert":"中划线"},{"insert":"\n"},{"insert":{"formula":"e=mc^2"}},{"insert":" \n"}]}"
+        builder.setPrettyPrinting();
+        Gson gson = builder.create();
 
-        t.convert(str);
+        String json = "{\"ops\":[{\"insert\":\"标题h1\"},{\"attributes\":{\"header\":1},\"insert\":\"\\n\"},{\"attributes\":{\"bold\":true},\"insert\":\"加粗\"},{\"insert\":\"\\n\"},{\"insert\":{\"image\":\"https://image-1258234461.cos.ap-guangzhou.myqcloud.com/icon/OJScVUCuH.jpg\"}},{\"insert\":\"\\n\"},{\"attributes\":{\"background\":\"#cce0f5\"},\"insert\":\"浅蓝色\"},{\"attributes\":{\"background\":\"#cce0f5\",\"color\":\"#008a00\"},\"insert\":\"背景的拉风大姐\"},{\"attributes\":{\"background\":\"#cce0f5\"},\"insert\":\"激\"},{\"attributes\":{\"background\":\"#cce0f5\",\"color\":\"#ff9900\"},\"insert\":\"发打卡\"},{\"attributes\":{\"background\":\"#cce0f5\"},\"insert\":\"机\"},{\"insert\":\"\\n\\n\\n\\n\\n居中\"},{\"attributes\":{\"background\":\"yellow\"},\"insert\":\"————\"},{\"attributes\":{\"align\":\"center\"},\"insert\":\"\\n\"},{\"attributes\":{\"background\":\"#0066cc\"},\"insert\":\"靠右\"},{\"attributes\":{\"align\":\"right\"},\"insert\":\"\\n\"},{\"attributes\":{\"underline\":true},\"insert\":\"下划线\"},{\"insert\":\"\\n\"},{\"attributes\":{\"strike\":true},\"insert\":\"中划线\"},{\"insert\":\"\\n\"},{\"insert\":{\"formula\":\"e=mc^2\"}},{\"insert\":\" \\n\"}]}";
+        // String json = "{}";
+
+        Delta delta = gson.fromJson(json, type);
+
+        System.out.println(delta);
+
+        // Test c = new Test();
+        // c.convert(delta);
     }
+}
+
+class Delta {
+    List<Op> ops;
+
+    @Override
+    public String toString() {
+        String sb = "";
+        for (Op op : ops) {
+            sb = sb + op + '\n';// op. + ": " + op.attributes + " | ";
+        }
+        return sb;
+    }
+}
+
+class Op {
+    String insert;
+    HashMap<String, String> attributes;
+
+    @Override
+    public String toString() {
+        return this.insert + " | attrs:" + this.attributes;
+    }
+}
+
+abstract class Image {
+    String image;
+}
+
+abstract class Video {
+    String video;
 }
