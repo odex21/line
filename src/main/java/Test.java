@@ -44,7 +44,7 @@ public class Test {
             // const { insert, ...attr } = cur;
 
             Object insert = cur.insert;
-            Optional<HashMap<String, String>> attr = cur.attributes;
+            HashMap<String, String> attr = cur.attributes;
 
             if (insert instanceof String) {
                 // 文本span
@@ -53,7 +53,7 @@ public class Test {
                 // 一般文本则长度为一，换行的长度至少为2
                 // ArrayList<Line> _lines = new ArrayList<Line>();
                 String str = (String) insert;
-                ArrayList<HashMap<String, String>> _lines = Test.convertListToMapList(Test.split(str));
+                ArrayList<Op> _lines = Test.convertListToMapList(Test.split(str));
 
                 // 是否换行
                 if (_lines.size() > 1) {
@@ -89,7 +89,6 @@ public class Test {
         ArrayList<Op> result = new ArrayList<>();
         for (T t : list) {
             Op data = new Op();
-            // data.put("insert", t);
             data.insert = t;
             result.add(data);
         }
@@ -107,7 +106,7 @@ class Line {
             this.spans.add(item);
     }
 
-    void set(Optional<HashMap<String, String>> attrs) {
+    void set(HashMap<String, String> attrs) {
         this.attributes = attrs;
     }
 
